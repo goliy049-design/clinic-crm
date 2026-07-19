@@ -1,3 +1,11 @@
+from rest_framework import permissions
 from rest_framework import viewsets
 
-# Views for the Clinics app.
+from .models import Clinic
+from .serializers import ClinicSerializer
+
+
+class ClinicViewSet(viewsets.ModelViewSet):
+    queryset = Clinic.objects.all()
+    serializer_class = ClinicSerializer
+    permission_classes = [permissions.IsAuthenticated]
