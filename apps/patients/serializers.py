@@ -1,3 +1,15 @@
 from rest_framework import serializers
 
-# Serializers for the Patients app.
+from .models import PatientProfile
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PatientProfile
+        fields = "__all__"
+        read_only_fields = (
+            "id",
+            "created_at",
+            "updated_at",
+             "clinic",
+        )

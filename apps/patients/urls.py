@@ -1,9 +1,8 @@
-from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-app_name = "patients"
+from .views import PatientViewSet
 
 router = DefaultRouter()
-# router.register("patients", SomeViewSet, basename="patients")
+router.register("", PatientViewSet)
 
 urlpatterns = router.urls
