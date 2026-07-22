@@ -7,22 +7,23 @@ from core.models import TenantModel
 class AppointmentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     CONFIRMED = "confirmed", "Confirmed"
+    COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
+    NO_SHOW = "no_show", "No Show"
 
+class AppointmentSource(models.TextChoices):
+    ADMIN_PANEL = "admin_panel", "Admin Panel"
+    TELEGRAM = "telegram", "Telegram"
+    WEBSITE = "website", "Website"
 
 class Appointment(TenantModel):
     """
-    `clinic` comes from TenantModel — not redeclared here. patient, staff,
-    and service are each independently clinic-scoped (PatientProfile,
-    StaffProfile, and Service are all TenantModel subclasses), so it's
-    possible to construct an Appointment whose related objects belong to
-    a *different* clinic than the appointment itself unless that's
-    explicitly checked — see clean() below.
+    Appointment record for a clinic.
 
-    clean() is not called automatically by save(); ModelForms and DRF
-    ModelSerializers call it for you, but raw `Appointment.objects.create(...)`
-    in scripts/shell/migrations does not. Call full_clean() explicitly in
-    those contexts.
+    clinic comes from TenantModel.
+    Patient, staff, and service are clinic-scoped models.
+    Staff assignment is optional because a reservation can be created
+    before the operator is selected.
     """
 
     patient = models.ForeignKey(
@@ -30,22 +31,39 @@ class Appointment(TenantModel):
         on_delete=models.PROTECT,
         related_name="appointments",
     )
+
     staff = models.ForeignKey(
         "staff.StaffProfile",
         on_delete=models.PROTECT,
         related_name="appointments",
+        null=True,
+        blank=True,
     )
+
     service = models.ForeignKey(
         "services.Service",
         on_delete=models.PROTECT,
         related_name="appointments",
     )
+
     start_time = models.DateTimeField()
+
     end_time = models.DateTimeField()
+
     status = models.CharField(
         max_length=20,
         choices=AppointmentStatus.choices,
         default=AppointmentStatus.PENDING,
+    )
+
+    source = models.CharField(
+    max_length=20,
+    choices=AppointmentSource.choices,
+    default=AppointmentSource.ADMIN_PANEL,
+    )
+    
+    notes = models.TextField(
+        blank=True,
     )
 
     class Meta:
@@ -57,18 +75,25 @@ class Appointment(TenantModel):
 
     def clean(self):
         super().clean()
+
         errors = {}
 
-        if self.start_time and self.end_time and self.end_time <= self.start_time:
-            errors["end_time"] = "End time must be after start time."
+        if self.start_time and self.end_time:
+            if self.end_time <= self.start_time:
+                errors["end_time"] = "End time must be after start time."
 
         for field_name in ("patient", "staff", "service"):
             related = getattr(self, field_name, None)
-            if related is not None and related.clinic_id != self.clinic_id:
-                errors[field_name] = "Must belong to the same clinic as the appointment."
+
+            if related is not None:
+                if related.clinic_id != self.clinic_id:
+                    errors[field_name] = (
+                        "Must belong to the same clinic as the appointment."
+                    )
 
         if errors:
             raise ValidationError(errors)
 
     def __str__(self):
-        return f"{self.patient} with {self.staff} @ {self.start_time:%Y-%m-%d %H:%M}"
+        staff_name = self.staff if self.staff else "Unassigned"
+        return f"{self.patient} with {staff_name} @ {self.start_time:%Y-%m-%d %H:%M}"

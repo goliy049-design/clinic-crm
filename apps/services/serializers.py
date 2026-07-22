@@ -1,3 +1,22 @@
 from rest_framework import serializers
 
-# Serializers for the Services app.
+from .models import Service
+
+
+class ServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = [
+            "id",
+            "name",
+            "description",
+            "duration_minutes",
+            "price",
+            "is_active",
+            "clinic",
+        ]
+
+        read_only_fields = [
+            "id",
+            "clinic",
+        ]
