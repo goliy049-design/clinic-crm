@@ -4,14 +4,14 @@ from core.admin import TenantScopedAdmin
 
 from .models import (
     Service,
-    ServiceLine,
+    ServiceCategory,
     ServiceVariant,
     Equipment,
 )
 
 
-@admin.register(ServiceLine)
-class ServiceLineAdmin(TenantScopedAdmin):
+@admin.register(ServiceCategory)
+class ServiceCategoryAdmin(TenantScopedAdmin):
     list_display = (
         "name",
         "clinic",
@@ -32,18 +32,24 @@ class ServiceLineAdmin(TenantScopedAdmin):
 class ServiceAdmin(TenantScopedAdmin):
     list_display = (
         "name",
+        "category",
+        "duration_minutes",
+        "price",
         "clinic",
         "is_active",
     )
 
     list_filter = (
+        "category",
         "clinic",
         "is_active",
     )
 
     search_fields = (
         "name",
+        "category__name",
     )
+
 
 
 @admin.register(ServiceVariant)
@@ -57,6 +63,7 @@ class ServiceVariantAdmin(TenantScopedAdmin):
     )
 
     list_filter = (
+        "service",
         "is_active",
     )
 
@@ -64,7 +71,6 @@ class ServiceVariantAdmin(TenantScopedAdmin):
         "name",
         "service__name",
     )
-
 
 @admin.register(Equipment)
 class EquipmentAdmin(TenantScopedAdmin):

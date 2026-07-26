@@ -4,7 +4,7 @@ from django.db import models
 from core.models import TenantModel
 
 
-class ServiceLine(TenantModel):
+class ServiceCategory(TenantModel):
     """
     Main service categories for a clinic.
     Example:
@@ -26,6 +26,7 @@ class ServiceLine(TenantModel):
     )
 
     class Meta:
+        db_table = "services_serviceline"
         ordering = ["name"]
 
     def __str__(self):
@@ -42,9 +43,11 @@ class Service(TenantModel):
     Cryolipolysis
     """
 
-    line = models.ManyToManyField(
-        ServiceLine,
+    category = models.ForeignKey(
+        "services.ServiceCategory",
+        on_delete=models.PROTECT,
         related_name="services",
+        null=True,
         blank=True,
     )
 
@@ -55,6 +58,23 @@ class Service(TenantModel):
     description = models.TextField(
         blank=True
     )
+
+    duration_minutes = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Default duration in minutes.",
+        null=True,
+        blank=True,
+    )
+
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Default service price.",
+        null=True,
+        blank=True,
+    )
+
 
     is_active = models.BooleanField(
         default=True

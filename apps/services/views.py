@@ -10,8 +10,14 @@ class ServiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Service.objects.filter(
-            clinic=self.request.user.staff_profile.clinic
+        return (
+            Service.objects
+            .filter(
+                clinic=self.request.user.staff_profile.clinic
+            )
+            .select_related(
+                "category",
+            )
         )
 
     def perform_create(self, serializer):
