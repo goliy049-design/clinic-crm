@@ -150,6 +150,7 @@ class StaffSchedule(TenantModel):
         ]
 
     def clean(self):
+       super().clean()
        if self.start_time and self.end_time:
            if self.start_time >= self.end_time:
                raise ValidationError(

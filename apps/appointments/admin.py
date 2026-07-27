@@ -9,7 +9,7 @@ from .models import Appointment
 class AppointmentAdmin(TenantScopedAdmin):
     # patient/staff/service dropdowns are already restricted to the
     # current clinic with no extra code here: PatientProfile, StaffProfile,
-    # and Service are all TenantModel subclasses, so their default manager
+    # and ServiceVariant are all TenantModel subclasses, so their default manager
     # (`objects`, a TenantManager) is already clinic-scoped by the same
     # contextvar TenantMiddleware sets for this request. Superusers see
     # every clinic's records in the dropdowns, same as everywhere else.

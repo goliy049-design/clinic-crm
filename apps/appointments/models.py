@@ -11,10 +11,12 @@ class AppointmentStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
     NO_SHOW = "no_show", "No Show"
 
+
 class AppointmentSource(models.TextChoices):
     ADMIN_PANEL = "admin_panel", "Admin Panel"
     TELEGRAM = "telegram", "Telegram"
     WEBSITE = "website", "Website"
+
 
 class Appointment(TenantModel):
     """
@@ -41,7 +43,7 @@ class Appointment(TenantModel):
     )
 
     service = models.ForeignKey(
-        "services.Service",
+        "services.ServiceVariant",
         on_delete=models.PROTECT,
         related_name="appointments",
     )
@@ -57,11 +59,11 @@ class Appointment(TenantModel):
     )
 
     source = models.CharField(
-    max_length=20,
-    choices=AppointmentSource.choices,
-    default=AppointmentSource.ADMIN_PANEL,
+        max_length=20,
+        choices=AppointmentSource.choices,
+        default=AppointmentSource.ADMIN_PANEL,
     )
-    
+
     notes = models.TextField(
         blank=True,
     )
@@ -78,11 +80,19 @@ class Appointment(TenantModel):
 
         errors = {}
 
+        # Check appointment time validity
         if self.start_time and self.end_time:
             if self.end_time <= self.start_time:
-                errors["end_time"] = "End time must be after start time."
+                errors["end_time"] = (
+                    "End time must be after start time."
+                )
 
-        for field_name in ("patient", "staff", "service"):
+        # Check tenant consistency
+        for field_name in (
+            "patient",
+            "staff",
+            "service",
+        ):
             related = getattr(self, field_name, None)
 
             if related is not None:
@@ -91,9 +101,55 @@ class Appointment(TenantModel):
                         "Must belong to the same clinic as the appointment."
                     )
 
+        # Check staff working schedule
+        if self.staff and self.start_time and self.end_time:
+
+            from apps.staff.models import StaffSchedule
+
+            appointment_date = self.start_time.date()
+
+            appointment_start = self.start_time.time()
+            appointment_end = self.end_time.time()
+
+            has_shift = StaffSchedule.objects.filter(
+                staff=self.staff,
+                date=appointment_date,
+                is_available=True,
+                start_time__lte=appointment_start,
+                end_time__gte=appointment_end,
+            ).exists()
+
+            if not has_shift:
+                errors["start_time"] = (
+                    "Staff member is not available during this time."
+                )
+
+        # Check overlapping appointments for same staff
+        if self.staff and self.start_time and self.end_time:
+
+            overlapping = Appointment.objects.filter(
+                staff=self.staff,
+                start_time__lt=self.end_time,
+                end_time__gt=self.start_time,
+            )
+
+            if self.pk:
+                overlapping = overlapping.exclude(
+                    pk=self.pk
+                )
+
+            if overlapping.exists():
+                errors["start_time"] = (
+                    "Staff member already has another appointment during this time."
+                )
+
         if errors:
             raise ValidationError(errors)
 
     def __str__(self):
         staff_name = self.staff if self.staff else "Unassigned"
-        return f"{self.patient} with {staff_name} @ {self.start_time:%Y-%m-%d %H:%M}"
+
+        return (
+            f"{self.patient} with {staff_name} "
+            f"@ {self.start_time:%Y-%m-%d %H:%M}"
+        )
