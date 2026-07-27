@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.core.exceptions import ValidationError
 
 from core.models import TenantModel
 
@@ -59,7 +60,7 @@ class StaffService(TenantModel):
     )
 
     service = models.ForeignKey(
-        "services.Service",
+        "services.ServiceVariant",
         on_delete=models.CASCADE,
         related_name="staff_services",
     )
@@ -102,3 +103,62 @@ class StaffService(TenantModel):
             f"{self.staff.user.username} - "
             f"{self.service.name}"
         )
+
+
+class StaffSchedule(TenantModel):
+    """
+    Defines the working shifts of a staff member.
+    One staff member may have multiple shifts per day.
+    """
+
+    staff = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.CASCADE,
+        related_name="schedules",
+    )
+
+    date = models.DateField()
+
+    start_time = models.TimeField()
+
+    end_time = models.TimeField()
+
+    is_available = models.BooleanField(
+        default=True,
+    )
+
+    notes = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = [
+            "date",
+            "start_time",
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "staff",
+                    "date",
+                    "start_time",
+                ],
+                name="unique_staff_shift",
+            ),
+        ]
+
+    def clean(self):
+       if self.start_time and self.end_time:
+           if self.start_time >= self.end_time:
+               raise ValidationError(
+                  "End time must be later than start time."
+               )
+
+    def __str__(self):
+        return (
+            f"{self.staff.user.username} | "
+            f"{self.date} "
+            f"{self.start_time}-{self.end_time}"
+        )    
