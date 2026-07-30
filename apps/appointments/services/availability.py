@@ -66,7 +66,6 @@ class AvailabilityService:
                 )
             })
 
-
     def validate_room_overlap(self):
         """
         Validate that every required room is free during
@@ -91,9 +90,6 @@ class AvailabilityService:
             .distinct()
         )
 
-        if not requested_rooms:
-            return
-
         overlapping = Appointment.objects.filter(
             start_time__lt=self.appointment.end_time,
             end_time__gt=self.appointment.start_time,
@@ -115,4 +111,52 @@ class AvailabilityService:
                 "service": (
                     "Required room is already occupied during this time."
                 )
-            })        
+            })
+
+    def validate_equipment_overlap(self):
+        """
+        Validate that required equipment is not already in use
+        during the requested appointment.
+        """
+        from apps.appointments.models import (
+            Appointment,
+            AppointmentStatus,
+        )
+
+        if not self.appointment.service:
+            return
+
+        requested_equipment = (
+            self.appointment.service.equipment.all()
+        )
+
+        if not requested_equipment.exists():
+            return
+
+        equipment_ids = requested_equipment.values_list(
+            "id",
+            flat=True,
+        )
+
+        overlapping = Appointment.objects.filter(
+            start_time__lt=self.appointment.end_time,
+            end_time__gt=self.appointment.start_time,
+            service__equipment__id__in=equipment_ids,
+        ).exclude(
+            status__in=[
+                AppointmentStatus.CANCELLED,
+                AppointmentStatus.NO_SHOW,
+            ]
+        ).distinct()
+
+        if self.appointment.pk:
+            overlapping = overlapping.exclude(
+                pk=self.appointment.pk,
+            )
+
+        if overlapping.exists():
+            raise ValidationError({
+                "service": (
+                    "Required equipment is already in use during this time."
+                )
+            })

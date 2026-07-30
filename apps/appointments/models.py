@@ -119,6 +119,12 @@ class Appointment(TenantModel):
                AvailabilityService(self).validate_room_overlap()
            except ValidationError as exc:
                errors.update(exc.message_dict)
+
+        if self.service and self.start_time and self.end_time:
+           try:
+               AvailabilityService(self).validate_equipment_overlap()
+           except ValidationError as exc:
+               errors.update(exc.message_dict)       
         
         if errors:
             raise ValidationError(errors)
