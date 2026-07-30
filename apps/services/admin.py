@@ -7,6 +7,7 @@ from .models import (
     ServiceCategory,
     ServiceVariant,
     Equipment,
+    Room,
 )
 
 
@@ -71,6 +72,24 @@ class ServiceVariantAdmin(TenantScopedAdmin):
         "name",
         "service__name",
     )
+
+@admin.register(Room)
+class RoomAdmin(TenantScopedAdmin):
+    list_display = (
+        "name",
+        "clinic",
+        "is_active",
+    )
+
+    list_filter = (
+        "clinic",
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+    ) 
+
 
 @admin.register(Equipment)
 class EquipmentAdmin(TenantScopedAdmin):

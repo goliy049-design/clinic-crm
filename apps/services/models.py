@@ -86,6 +86,32 @@ class Service(TenantModel):
     def __str__(self):
         return f"{self.name} @ {self.clinic.name}"
 
+class Room(TenantModel):
+    """
+    Physical room inside the clinic.
+    Equipment can be moved between rooms by the clinic manager.
+    """
+
+    name = models.CharField(
+        max_length=100,
+    )
+
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 
 class Equipment(TenantModel):
     """
@@ -109,6 +135,14 @@ class Equipment(TenantModel):
     model = models.CharField(
         max_length=150,
         blank=True,
+    )
+
+    room = models.ForeignKey(
+    "services.Room",
+    on_delete=models.SET_NULL,
+    related_name="equipments",
+    null=True,
+    blank=True,
     )
 
     description = models.TextField(

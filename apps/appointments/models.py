@@ -131,6 +131,11 @@ class Appointment(TenantModel):
                 staff=self.staff,
                 start_time__lt=self.end_time,
                 end_time__gt=self.start_time,
+            ).exclude(
+                status__in=[
+                 AppointmentStatus.CANCELLED,
+                 AppointmentStatus.NO_SHOW,
+                ]
             )
 
             if self.pk:
@@ -143,6 +148,43 @@ class Appointment(TenantModel):
                     "Staff member already has another appointment during this time."
                 )
 
+        # Check room availability
+        if self.service and self.start_time and self.end_time:
+
+            requested_rooms = (
+                self.service.equipment.exclude(
+                    room__isnull=True,
+                )
+                .values_list(
+                    "room_id",
+                    flat=True,
+                )
+                .distinct()
+            )
+
+            if requested_rooms:
+
+                overlapping = Appointment.objects.filter(
+                    start_time__lt=self.end_time,
+                    end_time__gt=self.start_time,
+                    service__equipment__room_id__in=requested_rooms,
+                ).exclude(
+                        status__in=[
+                           AppointmentStatus.CANCELLED,
+                           AppointmentStatus.NO_SHOW,
+                    ]
+                ).distinct()
+
+                if self.pk:
+                    overlapping = overlapping.exclude(
+                        pk=self.pk,
+                    )
+
+                if overlapping.exists():
+                    errors["service"] = (
+                        "Required room is already occupied during this time."
+                    )
+        
         if errors:
             raise ValidationError(errors)
 
