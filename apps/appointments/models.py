@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from core.models import TenantModel
+from .services.availability import AvailabilityService
 
 
 class AppointmentStatus(models.TextChoices):
@@ -101,89 +102,23 @@ class Appointment(TenantModel):
                         "Must belong to the same clinic as the appointment."
                     )
 
-        # Check staff working schedule
         if self.staff and self.start_time and self.end_time:
+           try:
+               AvailabilityService(self).validate_staff_schedule()
+           except ValidationError as exc:
+               errors.update(exc.message_dict)
 
-            from apps.staff.models import StaffSchedule
-
-            appointment_date = self.start_time.date()
-
-            appointment_start = self.start_time.time()
-            appointment_end = self.end_time.time()
-
-            has_shift = StaffSchedule.objects.filter(
-                staff=self.staff,
-                date=appointment_date,
-                is_available=True,
-                start_time__lte=appointment_start,
-                end_time__gte=appointment_end,
-            ).exists()
-
-            if not has_shift:
-                errors["start_time"] = (
-                    "Staff member is not available during this time."
-                )
-
-        # Check overlapping appointments for same staff
         if self.staff and self.start_time and self.end_time:
+            try:
+                AvailabilityService(self).validate_staff_overlap()
+            except ValidationError as exc:
+                errors.update(exc.message_dict)
 
-            overlapping = Appointment.objects.filter(
-                staff=self.staff,
-                start_time__lt=self.end_time,
-                end_time__gt=self.start_time,
-            ).exclude(
-                status__in=[
-                 AppointmentStatus.CANCELLED,
-                 AppointmentStatus.NO_SHOW,
-                ]
-            )
-
-            if self.pk:
-                overlapping = overlapping.exclude(
-                    pk=self.pk
-                )
-
-            if overlapping.exists():
-                errors["start_time"] = (
-                    "Staff member already has another appointment during this time."
-                )
-
-        # Check room availability
         if self.service and self.start_time and self.end_time:
-
-            requested_rooms = (
-                self.service.equipment.exclude(
-                    room__isnull=True,
-                )
-                .values_list(
-                    "room_id",
-                    flat=True,
-                )
-                .distinct()
-            )
-
-            if requested_rooms:
-
-                overlapping = Appointment.objects.filter(
-                    start_time__lt=self.end_time,
-                    end_time__gt=self.start_time,
-                    service__equipment__room_id__in=requested_rooms,
-                ).exclude(
-                        status__in=[
-                           AppointmentStatus.CANCELLED,
-                           AppointmentStatus.NO_SHOW,
-                    ]
-                ).distinct()
-
-                if self.pk:
-                    overlapping = overlapping.exclude(
-                        pk=self.pk,
-                    )
-
-                if overlapping.exists():
-                    errors["service"] = (
-                        "Required room is already occupied during this time."
-                    )
+           try:
+               AvailabilityService(self).validate_room_overlap()
+           except ValidationError as exc:
+               errors.update(exc.message_dict)
         
         if errors:
             raise ValidationError(errors)
