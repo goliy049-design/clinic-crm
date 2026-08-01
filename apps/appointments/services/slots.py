@@ -8,7 +8,7 @@ class SlotService:
     Calculates available appointment slots for a given service,
     staff member and date.
 
-    This service will become the single source of truth for
+    This service is the single source of truth for
     appointment availability across:
 
     - Admin panel
@@ -30,8 +30,7 @@ class SlotService:
 
     def get_available_slots(self):
         """
-        Returns all possible appointment start times
-        based on staff working shifts.
+        Returns available appointment start times.
         """
 
         slots = []
@@ -41,8 +40,8 @@ class SlotService:
                 self.generate_shift_slots(shift)
             )
 
-        return slots
-        
+        return self.remove_booked_slots(slots)
+
     def get_staff_shifts(self):
         """
         Returns all working shifts of the selected staff member
@@ -59,11 +58,12 @@ class SlotService:
             is_available=True,
         ).order_by(
             "start_time",
-        )   
-     
+        )
+
     def generate_shift_slots(self, shift):
         """
-        Generate all possible slot start times inside one shift.
+        Generate all possible appointment start times
+        inside one working shift.
         """
 
         slots = []
@@ -86,4 +86,47 @@ class SlotService:
             slots.append(current)
             current += duration
 
-        return slots    
+        return slots
+
+    def remove_booked_slots(self, slots):
+        """
+        Removes slots that overlap with existing appointments.
+        """
+
+        from apps.appointments.models import (
+            Appointment,
+            AppointmentStatus,
+        )
+
+        if not self.staff:
+            return slots
+
+        appointments = Appointment.objects.filter(
+            clinic=self.clinic,
+            staff=self.staff,
+            start_time__date=self.date,
+        ).exclude(
+            status__in=[
+                AppointmentStatus.CANCELLED,
+                AppointmentStatus.NO_SHOW,
+            ]
+        )
+
+        duration = timedelta(
+            minutes=self.service.duration_minutes,
+        )
+
+        available_slots = []
+
+        for slot in slots:
+            slot_end = slot + duration
+
+            has_conflict = appointments.filter(
+                start_time__lt=slot_end,
+                end_time__gt=slot,
+            ).exists()
+
+            if not has_conflict:
+                available_slots.append(slot)
+
+        return available_slots
