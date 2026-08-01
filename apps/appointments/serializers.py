@@ -29,3 +29,13 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class AvailableSlotSerializer(serializers.Serializer):
+    """
+    Input serializer for available appointment slots API.
+    """
+
+    service = serializers.UUIDField()
+    staff = serializers.UUIDField()
+    date = serializers.DateField()
