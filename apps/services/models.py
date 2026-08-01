@@ -188,6 +188,11 @@ class ServiceVariant(TenantModel):
         validators=[MinValueValidator(1)]
     )
 
+    buffer_minutes = models.PositiveIntegerField(
+        default=0,
+        help_text="Extra time required after service."
+    )
+
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
