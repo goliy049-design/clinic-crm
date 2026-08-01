@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from django.utils import timezone
 
 from apps.staff.models import StaffSchedule
 
@@ -84,14 +85,18 @@ class SlotService:
 
         slots = []
 
-        current = datetime.combine(
-            self.date,
-            shift.start_time,
+        current = timezone.make_aware(
+            datetime.combine(
+              self.date,
+              shift.start_time,
+            )
         )
 
-        shift_end = datetime.combine(
-            self.date,
-            shift.end_time,
+        shift_end = timezone.make_aware(
+            datetime.combine(
+                self.date,
+                shift.end_time,
+            )
         )
 
         duration = self.get_total_duration()
