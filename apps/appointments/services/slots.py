@@ -60,6 +60,22 @@ class SlotService:
             "start_time",
         )
 
+    def get_total_duration(self):
+        """
+        Returns total occupied time of the appointment.
+
+        Includes:
+        - treatment duration
+        - preparation/cleaning buffer
+        """
+
+        return timedelta(
+            minutes=(
+                self.service.duration_minutes
+                + self.service.buffer_minutes
+            )
+        )
+
     def generate_shift_slots(self, shift):
         """
         Generate all possible appointment start times
@@ -78,9 +94,7 @@ class SlotService:
             shift.end_time,
         )
 
-        duration = timedelta(
-            minutes=self.service.duration_minutes,
-        )
+        duration = self.get_total_duration()
 
         while current + duration <= shift_end:
             slots.append(current)
@@ -112,9 +126,7 @@ class SlotService:
             ]
         )
 
-        duration = timedelta(
-            minutes=self.service.duration_minutes,
-        )
+        duration = self.get_total_duration()
 
         available_slots = []
 
