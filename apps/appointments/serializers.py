@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Appointment
+from .models import Appointment, AppointmentStatus
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -26,9 +26,25 @@ class AppointmentSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "clinic",
+            "status",
             "created_at",
             "updated_at",
         ]
+
+
+class ChangeAppointmentStatusSerializer(serializers.Serializer):
+    """
+    Serializer for controlled appointment status transitions.
+    """
+
+    status = serializers.ChoiceField(
+        choices=AppointmentStatus.choices,
+    )
+
+    note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
 
 
 class AvailableSlotSerializer(serializers.Serializer):

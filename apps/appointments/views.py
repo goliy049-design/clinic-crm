@@ -1,6 +1,5 @@
-from datetime import datetime
-
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,8 +13,10 @@ from .models import Appointment
 from .serializers import (
     AppointmentSerializer,
     AvailableSlotSerializer,
+    ChangeAppointmentStatusSerializer,
 )
 from .services.slots import SlotService
+from .services.appointment_service import AppointmentService
 
 
 class AppointmentViewSet(ModelViewSet):
@@ -56,6 +57,44 @@ class AppointmentViewSet(ModelViewSet):
             clinic=clinic
         )
 
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="change-status",
+    )
+    def change_status(self, request, pk=None):
+        appointment = self.get_object()
+
+        serializer = ChangeAppointmentStatusSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        new_status = serializer.validated_data["status"]
+
+        note = serializer.validated_data.get(
+            "note",
+            "",
+        )
+
+        AppointmentService(
+            appointment
+        ).change_status(
+            new_status=new_status,
+            changed_by=request.user,
+            note=note,
+        )
+
+        return Response(
+            AppointmentSerializer(
+                appointment
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
 
 class AvailableSlotsAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -65,7 +104,9 @@ class AvailableSlotsAPIView(APIView):
             data=request.query_params
         )
 
-        serializer.is_valid(raise_exception=True)
+        serializer.is_valid(
+            raise_exception=True
+        )
 
         clinic = request.user.staff_profile.clinic
 

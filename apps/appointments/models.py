@@ -8,6 +8,8 @@ from .services.availability import AvailabilityService
 class AppointmentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     CONFIRMED = "confirmed", "Confirmed"
+    CHECKED_IN = "checked_in", "Checked In"
+    IN_PROGRESS = "in_progress", "In Progress"
     COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
     NO_SHOW = "no_show", "No Show"
@@ -76,6 +78,29 @@ class Appointment(TenantModel):
             models.Index(fields=["staff", "start_time"]),
         ]
 
+    # Allowed workflow transitions
+    ALLOWED_STATUS_TRANSITIONS = {
+        AppointmentStatus.PENDING: {
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.CANCELLED,
+        },
+        AppointmentStatus.CONFIRMED: {
+            AppointmentStatus.CHECKED_IN,
+            AppointmentStatus.NO_SHOW,
+            AppointmentStatus.CANCELLED,
+        },
+        AppointmentStatus.CHECKED_IN: {
+            AppointmentStatus.IN_PROGRESS,
+            AppointmentStatus.CANCELLED,
+        },
+        AppointmentStatus.IN_PROGRESS: {
+            AppointmentStatus.COMPLETED,
+        },
+        AppointmentStatus.COMPLETED: set(),
+        AppointmentStatus.CANCELLED: set(),
+        AppointmentStatus.NO_SHOW: set(),
+    }
+
     def clean(self):
         super().clean()
 
@@ -103,10 +128,10 @@ class Appointment(TenantModel):
                     )
 
         if self.staff and self.start_time and self.end_time:
-           try:
-               AvailabilityService(self).validate_staff_schedule()
-           except ValidationError as exc:
-               errors.update(exc.message_dict)
+            try:
+                AvailabilityService(self).validate_staff_schedule()
+            except ValidationError as exc:
+                errors.update(exc.message_dict)
 
         if self.staff and self.start_time and self.end_time:
             try:
@@ -115,17 +140,17 @@ class Appointment(TenantModel):
                 errors.update(exc.message_dict)
 
         if self.service and self.start_time and self.end_time:
-           try:
-               AvailabilityService(self).validate_room_overlap()
-           except ValidationError as exc:
-               errors.update(exc.message_dict)
+            try:
+                AvailabilityService(self).validate_room_overlap()
+            except ValidationError as exc:
+                errors.update(exc.message_dict)
 
         if self.service and self.start_time and self.end_time:
-           try:
-               AvailabilityService(self).validate_equipment_overlap()
-           except ValidationError as exc:
-               errors.update(exc.message_dict)       
-        
+            try:
+                AvailabilityService(self).validate_equipment_overlap()
+            except ValidationError as exc:
+                errors.update(exc.message_dict)
+
         if errors:
             raise ValidationError(errors)
 
@@ -136,3 +161,70 @@ class Appointment(TenantModel):
             f"{self.patient} with {staff_name} "
             f"@ {self.start_time:%Y-%m-%d %H:%M}"
         )
+
+class AppointmentEvent(models.Model):
+    """
+    Stores important events that happen during an appointment lifecycle.
+
+    This is an audit log for appointment changes such as:
+    - status changes
+    - staff changes
+    - time changes
+    - creation events
+    """
+
+    class EventType(models.TextChoices):
+        CREATED = "created", "Created"
+        STATUS_CHANGED = "status_changed", "Status Changed"
+        STAFF_CHANGED = "staff_changed", "Staff Changed"
+        TIME_CHANGED = "time_changed", "Time Changed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+
+    event_type = models.CharField(
+        max_length=30,
+        choices=EventType.choices,
+    )
+
+    old_value = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    new_value = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="appointment_events",
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["appointment", "created_at"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.appointment_id} - "
+            f"{self.event_type}"
+        )    
