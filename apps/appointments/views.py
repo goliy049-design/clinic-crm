@@ -9,9 +9,10 @@ from rest_framework.exceptions import ValidationError
 from apps.services.models import ServiceVariant
 from apps.staff.models import StaffProfile
 
-from .models import Appointment
+from .models import Appointment, AppointmentEvent
 from .serializers import (
     AppointmentSerializer,
+    AppointmentEventSerializer,
     AvailableSlotSerializer,
     ChangeAppointmentStatusSerializer,
 )
@@ -92,6 +93,30 @@ class AppointmentViewSet(ModelViewSet):
             AppointmentSerializer(
                 appointment
             ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="events",
+    )
+    def events(self, request, pk=None):
+        appointment = self.get_object()
+
+        events = AppointmentEvent.objects.filter(
+            appointment=appointment
+        ).order_by(
+            "created_at"
+        )
+
+        serializer = AppointmentEventSerializer(
+            events,
+            many=True,
+        )
+
+        return Response(
+            serializer.data,
             status=status.HTTP_200_OK,
         )
 

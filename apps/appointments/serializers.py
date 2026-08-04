@@ -1,6 +1,10 @@
 from rest_framework import serializers
 
-from .models import Appointment, AppointmentStatus
+from .models import (
+    Appointment,
+    AppointmentStatus,
+    AppointmentEvent,
+)
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -30,6 +34,33 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class AppointmentEventSerializer(serializers.ModelSerializer):
+    """
+    Serializer for appointment timeline events.
+    """
+
+    created_by_name = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+    )
+
+    class Meta:
+        model = AppointmentEvent
+
+        fields = [
+            "id",
+            "event_type",
+            "old_value",
+            "new_value",
+            "description",
+            "created_by",
+            "created_by_name",
+            "created_at",
+        ]
+
+        read_only_fields = fields
 
 
 class ChangeAppointmentStatusSerializer(serializers.Serializer):
