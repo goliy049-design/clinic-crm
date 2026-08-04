@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from apps.notifications.models import (
     NotificationQueue,
     NotificationQueueStatus,
@@ -41,12 +43,39 @@ class NotificationEngine:
                 status=NotificationQueueStatus.PENDING,
             )
 
-        notification = Notification.objects.create(
+        return Notification.objects.create(
             clinic=event.appointment.clinic,
             title="Appointment Notification",
             message="Notification created from event.",
             channel=rule.channel,
             status=NotificationStatus.PENDING,
+        )
+
+    @staticmethod
+    def approve_queue(queue: NotificationQueue):
+        """
+        Approves a queued notification
+        and creates the real notification.
+        """
+
+        if queue.status != NotificationQueueStatus.PENDING:
+            return None
+
+        notification = Notification.objects.create(
+            clinic=queue.clinic,
+            title=queue.title,
+            message=queue.message,
+            channel=queue.channel,
+            status=NotificationStatus.PENDING,
+        )
+
+        queue.status = NotificationQueueStatus.APPROVED
+        queue.approved_at = timezone.now()
+        queue.save(
+            update_fields=[
+                "status",
+                "approved_at",
+            ]
         )
 
         return notification
