@@ -22,5 +22,6 @@ urlpatterns = [
     path("api/v1/media/", include("apps.media.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("api/v1/integrations/", include("apps.integrations.urls")),
+    path("api/v1/public/",include("apps.public_api.urls")),
     
 ]
