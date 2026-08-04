@@ -6,9 +6,8 @@ from apps.appointments.models import (
     AppointmentEvent,
 )
 
-from apps.notifications.models import NotificationChannel
-from apps.notifications.services.notification_service import (
-    NotificationService,
+from apps.notifications.services.notification_engine import (
+    NotificationEngine,
 )
 
 
@@ -51,7 +50,7 @@ class AppointmentService:
         self.appointment.status = new_status
         self.appointment.save()
 
-        AppointmentEvent.objects.create(
+        event = AppointmentEvent.objects.create(
             appointment=self.appointment,
             event_type=AppointmentEvent.EventType.STATUS_CHANGED,
             old_value=old_status,
@@ -60,19 +59,12 @@ class AppointmentService:
             description=note,
         )
 
-        # Create notification for patient if user account exists
         patient_user = self.appointment.patient.user
 
         if patient_user:
-            NotificationService.create_notification(
-                clinic=self.appointment.clinic,
-                title="تغییر وضعیت نوبت",
-                message=(
-                    f"وضعیت نوبت شما از "
-                    f"{old_status} به {new_status} تغییر کرد."
-                ),
+            NotificationEngine.process_event(
+                event=event,
                 recipients=[patient_user],
-                channel=NotificationChannel.IN_APP,
             )
 
         return self.appointment
