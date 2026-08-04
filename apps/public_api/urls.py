@@ -6,6 +6,10 @@ from .views import (
     PublicAvailableSlotsAPIView,
 )
 
+from .appointment_views import (
+    PublicAppointmentCreateAPIView,
+)
+
 
 app_name = "public_api"
 
@@ -25,8 +29,14 @@ urlpatterns = [
     ),
 
     path(
-    "slots/",
-    PublicAvailableSlotsAPIView.as_view(),
-    name="public-slots",
+        "slots/",
+        PublicAvailableSlotsAPIView.as_view(),
+        name="public-slots",
+    ),
+
+    path(
+        "appointments/",
+        PublicAppointmentCreateAPIView.as_view(),
+        name="public-create-appointment",
     ),
 ]

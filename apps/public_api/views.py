@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny
 
 from apps.clinics.models import Clinic
 from apps.services.models import ServiceVariant
-from apps.staff.models import StaffProfile
+
 
 from .serializers import (
     PublicServiceSerializer,

@@ -42,6 +42,36 @@ class PublicStaffSerializer(serializers.ModelSerializer):
 
 class PublicSlotSerializer(serializers.Serializer):
 
-    slot = serializers.DateTimeField(
-        format="%H:%M",
-    )        
+    time = serializers.CharField()
+
+from apps.clinics.models import Clinic
+from apps.staff.models import StaffProfile
+from apps.patients.models import PatientProfile
+
+
+class PublicBookingSerializer(serializers.Serializer):
+
+    clinic = serializers.SlugRelatedField(
+        queryset=Clinic.objects.filter(
+            is_active=True
+        ),
+        slug_field="slug",
+    )
+
+    patient_name = serializers.CharField(
+        max_length=255
+    )
+
+    phone_number = serializers.CharField(
+        max_length=32
+    )
+
+    service = serializers.PrimaryKeyRelatedField(
+        queryset=ServiceVariant.objects.all()
+    )
+
+    staff = serializers.PrimaryKeyRelatedField(
+        queryset=StaffProfile.objects.all()
+    )
+
+    start_time = serializers.DateTimeField()   
